@@ -108,7 +108,7 @@ extern "C" void GfxSetUIAnchorMode(int mode) {
     if (interp == nullptr) {
         return;
     }
-    interp->SetUIAnchorMode(static_cast<Interpreter::GfxUIAnchorMode>(mode));
+    interp->SetUIAnchorMode(static_cast<Fast::Interpreter::GfxUIAnchorMode>(mode));
 }
 
 extern "C" int GfxGetUIAnchorMode(void) {

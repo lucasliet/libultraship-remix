@@ -2,6 +2,10 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__SWITCH__)
+// NRO homebrew: no dynamic loader — dlfcn.h doesn't exist in the devkitA64
+// newlib. gfxPointerInLoadedModule stubs to "not in a mod module" below.
+#include <unistd.h>
 #else
 #include <dlfcn.h>
 #include <sys/mman.h>
@@ -312,6 +316,10 @@ bool gfxPointerInLoadedModule(const void* ptr) {
     // leftover (0x01000000, 0x0E000000, ...) would land "inside a module"
     // and the SETTIMG/G_VTX guards would never fire.
     return mod != nullptr && mod != GetModuleHandleA(nullptr);
+#elif defined(__SWITCH__)
+    // No dynamic loader and no mod modules on Switch — no pointer can
+    // live in a mod image.
+    return false;
 #else
     // Same main-image exclusion as Windows. On Linux the port links
     // non-PIE, so the executable itself owns the sub-256MB VA range that
@@ -502,6 +510,11 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
 #else
     using MincoreVec = unsigned char;
 #endif
+#if defined(__SWITCH__)
+    // No mmap/mincore in the devkitA64 newlib — every Switch pointer lives
+    // in fully committed heap/rodata, so the residency probe is vacuous.
+    return true;
+#else
     MincoreVec vec[16];
     while (numPages != 0) {
         size_t chunk = numPages < sizeof(vec) ? numPages : sizeof(vec);
@@ -512,6 +525,7 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
         numPages -= chunk;
     }
     return true;
+#endif // !__SWITCH__
 #endif
 }
 
