@@ -24,6 +24,14 @@ void GfxSetWidescreenActive(int active);
 // off / window is not wider than 4:3.
 float GfxGetWidescreenClipXScale(void);
 
+// SSB64 port: 2D rect anchor policy applied when widescreen is active.
+// 0=Stretch (status quo wide pixels), 1=Center4_3 (letterboxed, undistorted),
+// 2=Spread (positions full-width, uniform sizes — battle HUD), 3/4=left/right
+// edge-pinned. Mode 1 is the intended default once the port glue flips it;
+// default here is Stretch so this ships as a no-op until driven by a CVar.
+void GfxSetUIAnchorMode(int mode);
+int GfxGetUIAnchorMode(void);
+
 // SSB64 port hook: when set non-zero AND widescreen is active, the GPU
 // scissor is tightened to the original 4:3 sub-region of the wider FB.
 // Used to crop scene-specific effects whose mesh geometry exposes

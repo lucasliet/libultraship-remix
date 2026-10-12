@@ -488,6 +488,26 @@ class Interpreter {
     // exactly the prior unconditional behaviour as a no-op fallback.
     void SetWidescreenActive(bool active) { mWidescreenActive = active; }
 
+    // SSB64 port: 2D rect anchor policy applied when widescreen is active.
+    // Stretch is the status quo (authored 4:3 NDC across the full wide FB —
+    // sprites render 1.33x wide). The other modes keep pixel aspect 1:1:
+    //   Center4_3  whole 320-space compresses into the centered 4:3 region
+    //              (letterboxed, undistorted) — default for menus/2D effects
+    //   Spread     positions map across the full width, sizes stay uniform —
+    //              battle HUD anchored to the physical edges
+    //   Left/Right edge-pinned variants (panel compresses toward that edge)
+    // Defaults to Stretch so enabling widescreen alone is byte-identical to
+    // the shipped widescreen behavior; the port glue flips the mode from a
+    // CVar.
+    enum class GfxUIAnchorMode { Stretch = 0, Center4_3 = 1, Spread = 2, AnchorLeft = 3, AnchorRight = 4 };
+    void SetUIAnchorMode(GfxUIAnchorMode mode) { mUIAnchorMode = mode; }
+    GfxUIAnchorMode GetUIAnchorMode() const { return mUIAnchorMode; }
+
+    // Map a centered-rect center NDC x through the active anchor mode. Widths
+    // are handled separately (always *scale) in GfxDrawRectangle.
+    float AnchorRectCenterX(float x_ndc, float scale) const;
+
+
     // Returns the same scale factor AdjXForAspectRatio applies to clip-space X.
     // Port glue uses this to compress game-side world-to-screen projection
     // results so HUD sprites that attach to 3D characters track them after
@@ -650,6 +670,7 @@ class Interpreter {
     // SSB64 port widescreen toggle — see SetWidescreenActive() doc.
     bool mWidescreenActive{};
     bool mTight4_3ScissorWindow{};
+    GfxUIAnchorMode mUIAnchorMode{ GfxUIAnchorMode::Stretch };
     bool mWidescreenFramebufferPersistence{};
     std::map<int, FBInfo>::iterator mActiveFrameBuffer;
     std::map<int, FBInfo> mFrameBuffers;

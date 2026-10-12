@@ -94,3 +94,35 @@ extern "C" void GfxSetWidescreenFramebufferPersistence(int active) {
     interp->SetWidescreenFramebufferPersistence(active != 0);
 }
 
+
+extern "C" void GfxSetUIAnchorMode(int mode) {
+    auto window = Ship::Context::GetInstance()->GetWindow();
+    if (window == nullptr) {
+        return;
+    }
+    auto fast3d = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
+    if (fast3d == nullptr) {
+        return;
+    }
+    auto interp = fast3d->GetInterpreterWeak().lock();
+    if (interp == nullptr) {
+        return;
+    }
+    interp->SetUIAnchorMode(static_cast<Interpreter::GfxUIAnchorMode>(mode));
+}
+
+extern "C" int GfxGetUIAnchorMode(void) {
+    auto window = Ship::Context::GetInstance()->GetWindow();
+    if (window == nullptr) {
+        return 0;
+    }
+    auto fast3d = std::dynamic_pointer_cast<Fast::Fast3dWindow>(window);
+    if (fast3d == nullptr) {
+        return 0;
+    }
+    auto interp = fast3d->GetInterpreterWeak().lock();
+    if (interp == nullptr) {
+        return 0;
+    }
+    return static_cast<int>(interp->GetUIAnchorMode());
+}

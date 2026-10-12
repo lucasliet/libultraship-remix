@@ -171,6 +171,19 @@ if (USE_OPENGLES)
     endif()
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    # devkitPro portlibs: switch-sdl2/switch-glad are autotools builds that
+    # ship only pkg-config files (no CMake configs), so the desktop
+    # find_package(SDL2) path doesn't exist here — wire headers and raw
+    # library names explicitly through the toolchain's DEVKITPRO root.
+    target_include_directories(libultraship PRIVATE
+        ${DEVKITPRO}/portlibs/switch/include
+        ${DEVKITPRO}/portlibs/switch/include/SDL2
+    )
+    target_link_directories(libultraship PRIVATE ${DEVKITPRO}/portlibs/switch/lib)
+    target_link_libraries(libultraship PRIVATE SDL2 glad)
+endif()
+
 target_link_libraries(libultraship PUBLIC prism)
 
 # Post-process shader transpiler (glslang + SPIRV-Cross). Pulled in by

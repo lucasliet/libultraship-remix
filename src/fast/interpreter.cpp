@@ -2928,6 +2928,29 @@ float Interpreter::AdjXForAspectRatio(float x) const {
     return x * GetWidescreenClipXScale();
 }
 
+// Map a centered-rect's center NDC x through the active 2D anchor mode.
+// See the GfxUIAnchorMode comment in interpreter.h for the per-mode
+// semantics. Rect widths are scaled uniformly by the caller, so pixel
+// aspect stays 1:1 in every non-Stretch mode.
+float Interpreter::AnchorRectCenterX(float x_ndc, float scale) const {
+    if (mFbActive) {
+        return x_ndc;
+    }
+    switch (mUIAnchorMode) {
+        case GfxUIAnchorMode::Center4_3:
+            return x_ndc * scale;
+        case GfxUIAnchorMode::Spread:
+            return x_ndc;
+        case GfxUIAnchorMode::AnchorLeft:
+            return (x_ndc + 1.0f) * scale - 1.0f;
+        case GfxUIAnchorMode::AnchorRight:
+            return 1.0f - (1.0f - x_ndc) * scale;
+        case GfxUIAnchorMode::Stretch:
+        default:
+            return x_ndc;
+    }
+}
+
 // Scale the width and height value based on the ratio of the viewport to the native size
 void Interpreter::AdjustWidthHeightForScale(uint32_t& width, uint32_t& height, uint32_t nativeWidth,
                                             uint32_t nativeHeight) const {
@@ -4622,7 +4645,19 @@ void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_
     // anchoring (cf. SoH's GFX_DIMENSIONS_FROM_LEFT_EDGE), which is Phase 2
     // scope.
     if (mWidescreenActive) {
-        // Phase 1: leave rect coords at their 4:3-authored NDC values.
+        // 2D anchor policy: Stretch keeps the status quo (authored 4:3 NDC
+        // across the full wide FB — wide pixels). The anchored modes keep
+        // pixel aspect 1:1: centers map through AnchorRectCenterX per mode,
+        // and every rect half-width scales by the clip-x factor uniformly.
+        // Framebuffer ops (mFbActive) are never transformed.
+        if (mUIAnchorMode != GfxUIAnchorMode::Stretch) {
+            const float s = GetWidescreenClipXScale();
+            const float cx = 0.5f * (ulxf + lrxf);
+            const float hw = 0.5f * (lrxf - ulxf) * s;
+            const float cx2 = AnchorRectCenterX(cx, s);
+            ulxf = cx2 - hw;
+            lrxf = cx2 + hw;
+        }
     } else {
         ulxf = AdjXForAspectRatio(ulxf);
         lrxf = AdjXForAspectRatio(lrxf);
