@@ -12,6 +12,13 @@ if(BATTLESHIP_UWP)
         COMMAND ${CMAKE_COMMAND} -Dpatch_file=${imgui_uwp_patch_file} -Dwith_reset=FALSE
                 -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/git-patch.cmake)
 endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    set(imgui_switch_patch_file ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/imgui-switch-config.patch)
+    set(imgui_apply_patch_command
+        ${imgui_apply_patch_command}
+        COMMAND ${CMAKE_COMMAND} -Dpatch_file=${imgui_switch_patch_file} -Dwith_reset=FALSE
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/git-patch.cmake)
+endif()
 
 FetchContent_Declare(
     ImGui
@@ -126,7 +133,8 @@ endif()
 # Heavy first-build cost (~10-20s extra link), so default OFF on the mobile
 # targets that don't yet have a CRT-shader UI. Desktops get it ON so user
 # .glsl drops Just Work cross-backend.
-if (CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+if (CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "Android"
+    OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(_LUS_PP_TRANSPILER_DEFAULT OFF)
 else()
     set(_LUS_PP_TRANSPILER_DEFAULT ON)
@@ -197,14 +205,15 @@ FetchContent_MakeAvailable(prism)
 # Static-only, hidraw backend on Linux (no libusb dep). 0.14.0 fixes a
 # macOS hid_close deadlock present in 0.13.x.
 #
-# On Android, hidapi-0.14.0 only ships a libusb backend, and the NDK
-# sysroot has no libusb-1.0 — so we provide a tiny stub library that
-# exposes the same hidapi C symbols as no-ops. The Raphnet code paths
-# in libultraship still link cleanly; at runtime hid_init() reports
-# success but hid_enumerate() returns nullptr, so RaphnetPhysicalDeviceManager
-# decides "no adapter found" and the SDL2 / Java HIDDeviceManager handles
-# everything that's actually present.
-if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+# On Android and Nintendo Switch homebrew, hidapi-0.14.0 has no usable
+# backend (the NDK sysroot has no libusb-1.0; the devkitA64 portlibs have no
+# hidraw) — so we provide a tiny stub library that exposes the same hidapi C
+# symbols as no-ops. The Raphnet code paths in libultraship still link
+# cleanly; at runtime hid_init() reports success but hid_enumerate() returns
+# nullptr, so RaphnetPhysicalDeviceManager decides "no adapter found" and
+# the SDL2 / Java HIDDeviceManager handles everything that's actually
+# present.
+if (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(_LUS_HIDAPI_STUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hidapi_stub)
     file(MAKE_DIRECTORY ${_LUS_HIDAPI_STUB_DIR})
     file(WRITE ${_LUS_HIDAPI_STUB_DIR}/hidapi.h [=[
