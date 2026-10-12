@@ -28,6 +28,11 @@
 #include <SDL.h>
 #include "fast/backends/gfx_metal.h"
 #include "ship/utils/macUtils.h"
+#elif __SWITCH__
+#include <SDL2/SDL.h>
+#include <switch.h>
+#include <glad/glad.h>
+#include "ship/port/switch/SwitchImpl.h"
 #else
 #include <SDL2/SDL.h>
 #define GL_GLEXT_PROTOTYPES 1
@@ -387,6 +392,10 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+#elif defined(__SWITCH__)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 #endif
 
 #ifdef _WIN32
@@ -409,6 +418,11 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
 
     char title[512];
     int len = snprintf(title, sizeof(title), "%s (%s)", gameName, gfxApiName);
+
+#ifdef __SWITCH__
+    // For Switch we need to set the window width before creating the window
+    Ship::Switch::GetDisplaySize(&mWindowWidth, &mWindowHeight);
+#endif
 
 #ifdef __IOS__
     Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_SHOWN;
@@ -442,17 +456,23 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     }
 
     if (use_opengl) {
+#ifndef __SWITCH__
         SDL_GL_GetDrawableSize(mWnd, &mWindowWidth, &mWindowHeight);
 
         if (startFullScreen) {
             SetFullscreenImpl(true, false);
         }
+#endif
 
         mCtx = SDL_GL_CreateContext(mWnd);
 
         SDL_GL_MakeCurrent(mWnd, mCtx);
         SDL_GL_SetSwapInterval(mVsyncEnabled ? 1 : 0);
-
+#ifdef __SWITCH__
+        if (!gladLoadGLLoader(SDL_GL_GetProcAddress)) {
+            printf("Failed to initialize glad\n");
+        }
+#endif
         window_impl.Opengl = { mWnd, mCtx };
     } else {
         uint32_t flags = SDL_RENDERER_ACCELERATED;
@@ -650,7 +670,9 @@ void GfxWindowBackendSDL2::HandleSingleEvent(SDL_Event& event) {
         case SDL_WINDOWEVENT:
             switch (event.window.event) {
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
-#ifdef __APPLE__
+#ifdef __SWITCH__
+                    Ship::Switch::GetDisplaySize(&mWindowWidth, &mWindowHeight);
+#elif __APPLE__
                     SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight);
 #else
                     SDL_GL_GetDrawableSize(mWnd, &mWindowWidth, &mWindowHeight);
@@ -797,10 +819,19 @@ bool GfxWindowBackendSDL2::CanDisableVsync() {
 }
 
 bool GfxWindowBackendSDL2::IsRunning() {
+#ifdef __SWITCH__
+    return mIsRunning && Ship::Switch::IsRunning();
+#else
     return mIsRunning;
+#endif
 }
 
 void GfxWindowBackendSDL2::Destroy() {
+    // Switch homebrew needs to release libnx services (applet hooks, hid,
+    // socket exit) before SDL teardown.
+#ifdef __SWITCH__
+    Ship::Switch::Exit();
+#endif
     // SDL2 teardown order matters: a renderer holds a back-reference to its
     // window, so SDL_DestroyRenderer must run before SDL_DestroyWindow or it
     // dereferences freed window memory and faults deep in libSDL2. Each
