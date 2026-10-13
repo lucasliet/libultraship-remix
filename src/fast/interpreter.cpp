@@ -497,10 +497,12 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
     // address pointed at unmapped heap. (mincore cannot detect PROT_NONE
     // mappings, but glibc does not place PROT_NONE at the brk frontier, and
     // "mapped but unreadable" is far rarer than "unmapped".)
+#if !defined(__SWITCH__) // devkitA64 newlib has no sysconf
     static const uintptr_t sPageSize = static_cast<uintptr_t>(sysconf(_SC_PAGESIZE));
     uintptr_t start = reinterpret_cast<uintptr_t>(ptr) & ~(sPageSize - 1);
     uintptr_t end = reinterpret_cast<uintptr_t>(ptr) + size;
     size_t numPages = (end - start + sPageSize - 1) / sPageSize;
+#endif
 
     // The probe covers at most a handful of pages for every caller today
     // (signature checks probe 8 bytes); cap defensively anyway.

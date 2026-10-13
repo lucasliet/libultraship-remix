@@ -34,6 +34,11 @@
 
 #include "fast/backends/gfx_metal_shader.h"
 
+// stb_image_write for backbuffer screenshot capture; TU-local like gfx_opengl.cpp's copy.
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
+#include "stb_image_write.h"
+
 #include "libultraship/libultra/abi.h"
 #include "ship/Context.h"
 #include "ship/config/ConsoleVariable.h"
@@ -42,6 +47,43 @@
 
 // MARK: - Helpers
 namespace Fast {
+
+// Backbuffer screenshot capture (Metal path). portFastCaptureBackbufferPNG
+// (gfx_opengl.cpp) stages the request; EndFrame blits the drawable into a
+// shared buffer before present and writes the PNG once the GPU finishes.
+static char sMetalCapturePendingPath[1024];
+static bool sMetalCapturePending = false;
+
+void MetalStageBackbufferCapture(const char* path) {
+    snprintf(sMetalCapturePendingPath, sizeof(sMetalCapturePendingPath), "%s", path);
+    sMetalCapturePending = true;
+}
+
+static void MetalWriteCapturedBGRA(MTL::Buffer* buffer, uint32_t width, uint32_t height, const char* path) {
+    std::vector<uint8_t> pixels((size_t)width * height * 4);
+    const uint8_t* bgra = static_cast<const uint8_t*>(buffer->contents());
+    for (size_t i = 0; i < pixels.size(); i += 4) {
+        pixels[i + 0] = bgra[i + 2];
+        pixels[i + 1] = bgra[i + 1];
+        pixels[i + 2] = bgra[i + 0];
+        pixels[i + 3] = 0xFF;
+    }
+    if (stbi_write_png(path, (int)width, (int)height, 4, pixels.data(), (int)width * 4) == 0) {
+        SPDLOG_WARN("portFastCaptureBackbufferPNG(Metal): stbi_write_png failed for {}", path);
+    }
+}
+
+static MTL::Buffer* MetalEncodeBackbufferCapture(MTL::Device* device, MTL::CommandBuffer* commandBuffer,
+                                                 MTL::Texture* texture) {
+    const uint32_t width = (uint32_t)texture->width();
+    const uint32_t height = (uint32_t)texture->height();
+    MTL::Buffer* buffer = device->newBuffer((NS::UInteger)width * height * 4, MTL::ResourceStorageModeShared);
+    MTL::BlitCommandEncoder* blit = commandBuffer->blitCommandEncoder();
+    blit->copyFromTexture(texture, 0, 0, MTL::Origin(0, 0, 0), MTL::Size(width, height, 1), buffer, 0,
+                          (NS::UInteger)width * 4, (NS::UInteger)width * height * 4);
+    blit->endEncoding();
+    return buffer;
+}
 
 static MTL::SamplerAddressMode gfx_cm_to_metal(uint32_t val) {
     switch (val) {
@@ -76,6 +118,8 @@ bool GfxRenderingAPIMetal::MetalInit(SDL_Renderer* renderer) {
 
     mLayer = (CA::MetalLayer*)SDL_RenderGetMetalLayer(renderer);
     mLayer->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
+    // Screenshot capture blits from the drawable, which a framebuffer-only texture forbids.
+    mLayer->setFramebufferOnly(false);
 
     mDevice = mLayer->device();
     mCommandQueue = mDevice->newCommandQueue();
@@ -659,9 +703,21 @@ void GfxRenderingAPIMetal::EndFrame() {
 
     auto screen_framebuffer = mFramebuffers[0];
     screen_framebuffer.mCommandEncoder->endEncoding();
+    MTL::Buffer* captureBuffer = nullptr;
+    if (sMetalCapturePending) {
+        captureBuffer =
+            MetalEncodeBackbufferCapture(mDevice, screen_framebuffer.mCommandBuffer, mCurrentDrawable->texture());
+    }
     screen_framebuffer.mCommandBuffer->presentDrawable(mCurrentDrawable);
     mCurrentVertexBufferPoolIndex = (mCurrentVertexBufferPoolIndex + 1) % kMaxVertexBufferPoolSize;
     screen_framebuffer.mCommandBuffer->commit();
+    if (captureBuffer != nullptr) {
+        sMetalCapturePending = false;
+        screen_framebuffer.mCommandBuffer->waitUntilCompleted();
+        MetalWriteCapturedBGRA(captureBuffer, (uint32_t)mCurrentDrawable->texture()->width(),
+                               (uint32_t)mCurrentDrawable->texture()->height(), sMetalCapturePendingPath);
+        captureBuffer->release();
+    }
 
     mDrawnFramebuffers.clear();
 

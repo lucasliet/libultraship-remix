@@ -181,7 +181,9 @@ if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
         ${DEVKITPRO}/portlibs/switch/include/SDL2
     )
     target_link_directories(libultraship PRIVATE ${DEVKITPRO}/portlibs/switch/lib)
-    target_link_libraries(libultraship PRIVATE SDL2 glad)
+    # libSDL2.a is static: its EGL backend pulls EGL -> glapi -> drm_nouveau
+    # (the same set switch-sdl2's sdl2.pc lists), which must follow SDL2.
+    target_link_libraries(libultraship PRIVATE SDL2 EGL glapi drm_nouveau glad)
 endif()
 
 target_link_libraries(libultraship PUBLIC prism)

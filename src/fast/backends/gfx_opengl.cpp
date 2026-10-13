@@ -2166,6 +2166,12 @@ ImTextureID GfxRenderingAPIOGL::GetTextureById(int id) {
 }
 } // namespace Fast
 
+#ifdef __APPLE__
+namespace Fast {
+void MetalStageBackbufferCapture(const char* path);
+}
+#endif
+
 #ifndef ENABLE_DX11
 // C-callable entry point for the port (see gfx_direct3d11.cpp for the DX11
 // version, which owns the symbol whenever DX11 is compiled in). GL cannot
@@ -2178,6 +2184,10 @@ extern "C" int portFastCaptureBackbufferPNG(const char* path) {
     }
     snprintf(Fast::sGLCapturePendingPath, sizeof(Fast::sGLCapturePendingPath), "%s", path);
     Fast::sGLCapturePending = true;
+#ifdef __APPLE__
+    // Whichever backend is active consumes its own staged request at EndFrame.
+    Fast::MetalStageBackbufferCapture(path);
+#endif
     return 1;
 }
 #endif
