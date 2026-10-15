@@ -69,6 +69,7 @@
 #endif
 
 extern "C" void* portRelocTryResolvePointer(uint32_t token);
+extern "C" void* portRelocResolveFallbackAddress(uint32_t value);
 extern "C" bool portRelocFindContainingFile(const void* ptr, uintptr_t* out_base, size_t* out_size);
 extern "C" bool portRelocDescribePointer(const void* ptr, uintptr_t* out_base, size_t* out_size,
                                          uint32_t* out_file_id, const char** out_path);
@@ -5096,6 +5097,12 @@ void Interpreter::Gfxs2dexRecyCopy(F3DuObjSprite* spr) {
 void* Interpreter::SegAddr(uintptr_t w1) {
     if (w1 <= UINT32_MAX) {
         void* relocPtr = portRelocTryResolvePointer((uint32_t)w1);
+
+        if (relocPtr != nullptr) {
+            return relocPtr;
+        }
+        // Raw addresses of a registered fallback memory image (Smash Remix RAM image, 0x80400000+).
+        relocPtr = portRelocResolveFallbackAddress((uint32_t)w1);
 
         if (relocPtr != nullptr) {
             return relocPtr;
