@@ -368,6 +368,10 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(const ShaderP
     prg->usedTextures[5] = cc_features.used_blend[1];
     prg->numInputs = cc_features.numInputs;
     prg->numFloats = numFloats;
+    prg->srgb_mode = key.srgbMode;
+    prg->vertex_function = vertexFunc->retain();
+    prg->fragment_function = fragmentFunc->retain();
+    prg->vertex_descriptor = vertex_descriptor->retain();
 
     bool createdPipelineState = false;
 
@@ -398,6 +402,9 @@ struct ShaderProgram* GfxRenderingAPIMetal::CreateAndLoadNewShader(const ShaderP
     }
 
     if (!createdPipelineState) {
+        prg->vertex_function->release();
+        prg->fragment_function->release();
+        prg->vertex_descriptor->release();
         mShaderProgramPool.erase(key);
         vertexFunc->release();
         fragmentFunc->release();
@@ -508,6 +515,39 @@ void GfxRenderingAPIMetal::SetDepthTestAndMask(bool depth_test, bool depth_mask)
 
 void GfxRenderingAPIMetal::SetZmodeDecal(bool zmode_decal) {
     mCurrentZmodeDecal = zmode_decal;
+}
+
+void GfxRenderingAPIMetal::SetColorWriteMask(bool enable) {
+    mCurrentColorWrite = enable;
+}
+
+MTL::RenderPipelineState* GfxRenderingAPIMetal::GetNoColorPipelineState(ShaderProgramMetal* program, int msaa_level) {
+    if (program->pipeline_state_variants_no_color[msaa_level] != nullptr) {
+        return program->pipeline_state_variants_no_color[msaa_level];
+    }
+
+    MTL::RenderPipelineDescriptor* descriptor = MTL::RenderPipelineDescriptor::alloc()->init();
+    descriptor->setVertexFunction(program->vertex_function);
+    descriptor->setFragmentFunction(program->fragment_function);
+    descriptor->setVertexDescriptor(program->vertex_descriptor);
+    descriptor->colorAttachments()->object(0)->setPixelFormat(program->srgb_mode ? MTL::PixelFormatBGRA8Unorm_sRGB
+                                                                                  : MTL::PixelFormatBGRA8Unorm);
+    descriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
+    descriptor->colorAttachments()->object(0)->setBlendingEnabled(false);
+    descriptor->colorAttachments()->object(0)->setWriteMask(MTL::ColorWriteMaskNone);
+    descriptor->setSampleCount(msaa_level);
+
+    NS::Error* error = nullptr;
+    MTL::RenderPipelineState* state = mDevice->newRenderPipelineState(descriptor, &error);
+    descriptor->release();
+    if (state == nullptr) {
+        const char* message = error != nullptr ? error->localizedDescription()->cString(NS::UTF8StringEncoding)
+                                               : "Metal returned no pipeline state or error";
+        SPDLOG_ERROR("Failed to create no-color pipeline state sample_count={}: {}", msaa_level, message);
+        return program->pipeline_state_variants[msaa_level];
+    }
+    program->pipeline_state_variants_no_color[msaa_level] = state;
+    return state;
 }
 
 void GfxRenderingAPIMetal::SetViewport(int x, int y, int width, int height) {
@@ -651,11 +691,14 @@ void GfxRenderingAPIMetal::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, si
         current_framebuffer.mCommandEncoder->setFragmentBytes(&mDrawUniforms, sizeof(DrawUniforms), 1);
     }
 
-    if (current_framebuffer.mLastShaderProgram != mShaderProgram) {
+    if (current_framebuffer.mLastShaderProgram != mShaderProgram ||
+        current_framebuffer.mLastColorWrite != mCurrentColorWrite) {
         current_framebuffer.mLastShaderProgram = mShaderProgram;
+        current_framebuffer.mLastColorWrite = mCurrentColorWrite;
 
         MTL::RenderPipelineState* pipeline_state =
-            mShaderProgram->pipeline_state_variants[current_framebuffer.mMsaaLevel];
+            mCurrentColorWrite ? mShaderProgram->pipeline_state_variants[current_framebuffer.mMsaaLevel]
+                               : GetNoColorPipelineState(mShaderProgram, current_framebuffer.mMsaaLevel);
         current_framebuffer.mCommandEncoder->setRenderPipelineState(pipeline_state);
     }
 

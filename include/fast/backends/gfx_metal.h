@@ -32,6 +32,7 @@ class RenderPipelineState;
 class CommandQueue;
 class Viewport;
 class Library;
+class VertexDescriptor;
 } // namespace MTL
 
 namespace CA {
@@ -55,6 +56,14 @@ struct ShaderProgramMetal {
 
     // hashed by msaa_level
     MTL::RenderPipelineState* pipeline_state_variants[9];
+
+    // Same program with framebuffer color writes masked off, built on first
+    // use (redirect-to-Z draws). Hashed by msaa_level.
+    MTL::RenderPipelineState* pipeline_state_variants_no_color[9];
+    MTL::Function* vertex_function;
+    MTL::Function* fragment_function;
+    MTL::VertexDescriptor* vertex_descriptor;
+    bool srgb_mode;
 };
 
 // Compiled post-process program. The pipeline state expects:
@@ -177,6 +186,7 @@ struct FramebufferMetal {
     int8_t mLastDepthTest = -1;
     int8_t mLastDepthMask = -1;
     int8_t mLastZmodeDecal = -1;
+    int8_t mLastColorWrite = -1;
 };
 
 struct FrameUniforms {
@@ -210,6 +220,7 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
     void SetSamplerParameters(int sampler, bool linear_filter, uint32_t cms, uint32_t cmt) override;
     void SetDepthTestAndMask(bool depth_test, bool z_upd) override;
     void SetZmodeDecal(bool decal) override;
+    void SetColorWriteMask(bool enable) override;
     void SetViewport(int x, int y, int width, int height) override;
     void SetScissor(int x, int y, int width, int height) override;
     void SetUseAlpha(bool useAlpha) override;
@@ -264,6 +275,8 @@ class GfxRenderingAPIMetal final : public GfxRenderingAPI {
     bool MetalInit(SDL_Renderer* renderer);
 
   private:
+    MTL::RenderPipelineState* GetNoColorPipelineState(struct ShaderProgramMetal* program, int msaa_level);
+    int8_t mCurrentColorWrite = 1;
     bool NonUniformThreadGroupSupported();
     void SetupScreenFramebuffer(uint32_t width, uint32_t height);
     // Elements that only need to be setup once
