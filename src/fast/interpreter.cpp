@@ -5509,7 +5509,14 @@ bool gfx_texture_handler_f3d(F3DGfx** cmd0) {
 // malloc + memcpy a heap copy at every init.
 static inline bool gfx_vtx_addr_is_unresolved(const void* addr) {
     uintptr_t i = (uintptr_t)addr;
-#if UINTPTR_MAX > 0xFFFFFFFFu
+#if defined(__SWITCH__)
+    // Switch homebrew hands out valid heap pointers below 4 GB (observed 0xa2xxxxxx), so the 4 GB cutoff
+    // below rejected every Vtx table and left a black screen. Stale N64 segment leftovers stay under
+    // 0x10000000, the same bound the SETTIMG guard uses.
+    if (i == 0 || i > 0x0FFFFFFFu) {
+        return false;
+    }
+#elif UINTPTR_MAX > 0xFFFFFFFFu
     if (i == 0 || i >= 0x100000000ull) {
         return false;
     }
