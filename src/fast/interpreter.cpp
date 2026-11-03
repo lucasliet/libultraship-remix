@@ -6878,6 +6878,12 @@ static void gfx_step() {
     {
         if (sDLBoundsCheck && sDLBoundsCheck((uintptr_t)cmd) == kDLBoundsWalkedPast) {
             static int sCount = 0;
+            static int sTotal = 0;
+            sTotal++;
+            if (sCount >= 10 && sTotal % 300 == 0) {
+                SPDLOG_WARN("gfx_step: walked past registered DL range {} times so far (last cmd 0x{:x})", sTotal,
+                            (unsigned long long)(uintptr_t)cmd);
+            }
             if (sCount < 10) {
                 sCount++;
                 SPDLOG_WARN("gfx_step: cmd 0x{:x} walked past registered DL range "
