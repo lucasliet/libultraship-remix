@@ -605,6 +605,9 @@ class Interpreter {
     float mFrameTriAreaPx = 0.0f;
     void GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode);
     void GfxDpSetOtherMode(uint32_t h, uint32_t l);
+    // While enabled, every G_SETOTHERMODE_L / G_RDPSETOTHERMODE that touches the render-mode bits (3..31) has them
+    // replaced by `renderMode` (the other bits are kept). Off by default and cleared at every SpReset.
+    void GfxSetForcedRenderMode(bool enabled, uint32_t renderMode);
 
     void Gfxs2dexBgCopy(F3DuObjBg* bg);
     void Gfxs2dexBg1cyc(F3DuObjBg* bg);
@@ -670,6 +673,8 @@ class Interpreter {
     // SSB64 port widescreen toggle — see SetWidescreenActive() doc.
     bool mWidescreenActive{};
     bool mTight4_3ScissorWindow{};
+    bool mForcedRenderModeActive{};
+    uint32_t mForcedRenderMode{};
     GfxUIAnchorMode mUIAnchorMode{ GfxUIAnchorMode::Stretch };
     bool mWidescreenFramebufferPersistence{};
     std::map<int, FBInfo>::iterator mActiveFrameBuffer;

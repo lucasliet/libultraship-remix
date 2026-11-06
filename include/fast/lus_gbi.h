@@ -66,6 +66,8 @@ constexpr int8_t OTR_G_DL_INDEX = OPCODE(0x3d);
 constexpr int8_t OTR_G_READFB = OPCODE(0x3e);
 constexpr int8_t OTR_G_REGBLENDEDTEX = OPCODE(0x3f);
 constexpr int8_t OTR_G_SETINTENSITY = OPCODE(0x40);
+// w0 bit 0: 1 = force on, 0 = off. w1: render-mode word (other-mode L bits 3..31) that replaces every render mode set while on.
+constexpr int8_t OTR_G_FORCE_RENDERMODE = OPCODE(0x41);
 constexpr int8_t OTR_G_MOVEMEM_HASH = OPCODE(0x42);
 constexpr int8_t OTR_G_PUSH_SHADER = OPCODE(0x43);
 constexpr int8_t OTR_G_POP_SHADER = OPCODE(0x44);

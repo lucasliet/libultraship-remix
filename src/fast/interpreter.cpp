@@ -4962,15 +4962,29 @@ bool Interpreter::RdpColorImageIsZBuffer() const {
     return mRdp->color_image_address_raw != 0 && mRdp->color_image_address_raw == mRdp->z_buf_address_raw;
 }
 
+// Render-mode bits of the low other-mode word (gDPSetRenderMode: shift 3, length 29).
+static constexpr uint32_t OTHER_MODE_L_RENDER_MODE_MASK = 0xFFFFFFF8;
+
+void Interpreter::GfxSetForcedRenderMode(bool enabled, uint32_t renderMode) {
+    mForcedRenderModeActive = enabled;
+    mForcedRenderMode = renderMode & OTHER_MODE_L_RENDER_MODE_MASK;
+}
+
 void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
     uint64_t mask = (((uint64_t)1 << num_bits) - 1) << shift;
     uint64_t om = mRdp->other_mode_l | ((uint64_t)mRdp->other_mode_h << 32);
     om = (om & ~mask) | mode;
+    if (mForcedRenderModeActive && (mask & OTHER_MODE_L_RENDER_MODE_MASK) != 0) {
+        om = (om & ~(uint64_t)OTHER_MODE_L_RENDER_MODE_MASK) | mForcedRenderMode;
+    }
     mRdp->other_mode_l = (uint32_t)om;
     mRdp->other_mode_h = (uint32_t)(om >> 32);
 }
 
 void Interpreter::GfxDpSetOtherMode(uint32_t h, uint32_t l) {
+    if (mForcedRenderModeActive) {
+        l = (l & ~OTHER_MODE_L_RENDER_MODE_MASK) | mForcedRenderMode;
+    }
     mRdp->other_mode_h = h;
     mRdp->other_mode_l = l;
 }
@@ -6310,6 +6324,14 @@ bool gfx_set_grayscale_handler_custom(F3DGfx** cmd0) {
     return false;
 }
 
+bool gfx_force_render_mode_handler_custom(F3DGfx** cmd0) {
+    Interpreter* gfx = mInstance.lock().get();
+    F3DGfx* cmd = *cmd0;
+
+    gfx->GfxSetForcedRenderMode(C0(0, 1) != 0, (uint32_t)cmd->words.w1);
+    return false;
+}
+
 bool gfx_load_block_handler_rdp(F3DGfx** cmd0) {
     Interpreter* gfx = mInstance.lock().get();
     F3DGfx* cmd = *cmd0;
@@ -6700,6 +6722,8 @@ static constexpr UcodeHandler otrHandlers = {
     { OTR_G_REGBLENDEDTEX,
       { "G_REGBLENDEDTEX", gfx_register_blended_texture_handler_custom } },         // G_REGBLENDEDTEX (0x3f)
     { OTR_G_SETINTENSITY, { "G_SETINTENSITY", gfx_set_intensity_handler_custom } }, // G_SETINTENSITY (0x40)
+    { OTR_G_FORCE_RENDERMODE,
+      { "G_FORCE_RENDERMODE", gfx_force_render_mode_handler_custom } }, // G_FORCE_RENDERMODE (0x41)
     { OTR_G_MOVEMEM_HASH, { "OTR_G_MOVEMEM_HASH", gfx_movemem_handler_otr } },      // OTR_G_MOVEMEM_HASH
     { OTR_G_PUSH_SHADER, { "G_PUSH_SHADER", gfx_push_shader } },
     { OTR_G_POP_SHADER, { "G_POP_SHADER", gfx_pop_shader } },
@@ -7006,6 +7030,7 @@ void Interpreter::SpReset() {
     while (!mShaderStack.empty()) {
         mShaderStack.pop();
     }
+    mForcedRenderModeActive = false;
     mRsp->modelview_matrix_stack_size = 1;
     mRsp->current_num_lights = 2;
     mRsp->lights_changed = true;
