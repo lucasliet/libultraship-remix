@@ -287,8 +287,8 @@ std::string GfxRenderingAPIOGL::BuildFsShader(const CCFeatures& cc_features, con
         { "SHADER_NOISE", SHADER_NOISE },
         { "o_three_point_filtering", key.filteringMode == FILTER_THREE_POINT },
         { "append_formula", (InvokeFunc)append_formula },
-#ifdef __APPLE__
-        { "GLSL_VERSION", "#version 410 core" },
+#ifdef LUS_GL_CORE_PROFILE
+        { "GLSL_VERSION", LUS_GL_CORE_GLSL_VERSION },
         { "attr", "in" },
         { "opengles", false },
         { "core_opengl", true },
@@ -358,8 +358,8 @@ static std::string BuildVsShader(const CCFeatures& cc_features) {
                                      { "o_alpha", cc_features.opt_alpha },
                                      { "o_inputs", cc_features.numInputs },
                                      { "update_floats", (InvokeFunc)UpdateFloats },
-#ifdef __APPLE__
-                                     { "GLSL_VERSION", "#version 410 core" },
+#ifdef LUS_GL_CORE_PROFILE
+                                     { "GLSL_VERSION", LUS_GL_CORE_GLSL_VERSION },
                                      { "attr", "in" },
                                      { "out", "out" },
                                      { "opengles", false }
@@ -609,7 +609,7 @@ void GfxRenderingAPIOGL::UploadTexture(const uint8_t* rgba32_buf, uint32_t width
     textures[mCurrentTextureIds[mCurrentTile]].height = height;
 }
 
-#if defined(__SWITCH__) || defined(USE_OPENGLES)
+#if defined(__SWITCH__) || defined(__PS5__) || defined(USE_OPENGLES)
 #define GL_MIRROR_CLAMP_TO_EDGE 0x8743
 #endif
 
@@ -736,14 +736,14 @@ void GfxRenderingAPIOGL::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size
 }
 
 void GfxRenderingAPIOGL::Init() {
-#if !defined(__SWITCH__) && !defined(__linux__) && !defined(__OpenBSD__)
+#if !defined(__SWITCH__) && !defined(__PS5__) && !defined(__linux__) && !defined(__OpenBSD__)
     glewInit();
 #endif
 
     glGenBuffers(1, &mOpenglVbo);
     glBindBuffer(GL_ARRAY_BUFFER, mOpenglVbo);
 
-#if defined(__APPLE__) || defined(USE_OPENGLES)
+#if defined(LUS_GL_CORE_PROFILE) || defined(USE_OPENGLES)
     glGenVertexArrays(1, &mOpenglVao);
     glBindVertexArray(mOpenglVao);
 #endif
@@ -1626,7 +1626,7 @@ void GfxRenderingAPIOGL::RunPostProcessSlang(int progId, int dstFb,
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // Restore the regular-draw VAO/VBO bindings.
-#if defined(__APPLE__) || defined(USE_OPENGLES)
+#if defined(LUS_GL_CORE_PROFILE) || defined(USE_OPENGLES)
     glBindVertexArray(mOpenglVao);
 #else
     glBindVertexArray(0);
@@ -1964,7 +1964,7 @@ void GfxRenderingAPIOGL::RunPostProcess(int progId, int srcFb, int dstFb, int or
     // assumes. On Apple / GLES the backend keeps mOpenglVao bound at all
     // times; elsewhere it uses the default VAO (0) and an always-bound
     // mOpenglVbo on GL_ARRAY_BUFFER.
-#if defined(__APPLE__) || defined(USE_OPENGLES)
+#if defined(LUS_GL_CORE_PROFILE) || defined(USE_OPENGLES)
     glBindVertexArray(mOpenglVao);
 #else
     glBindVertexArray(0);

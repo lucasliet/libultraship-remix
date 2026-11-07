@@ -134,7 +134,7 @@ endif()
 # targets that don't yet have a CRT-shader UI. Desktops get it ON so user
 # .glsl drops Just Work cross-backend.
 if (CMAKE_SYSTEM_NAME STREQUAL "iOS" OR CMAKE_SYSTEM_NAME STREQUAL "Android"
-    OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch" OR CMAKE_SYSTEM_NAME STREQUAL "PS5")
     set(_LUS_PP_TRANSPILER_DEFAULT OFF)
 else()
     set(_LUS_PP_TRANSPILER_DEFAULT ON)
@@ -213,7 +213,8 @@ FetchContent_MakeAvailable(prism)
 # nullptr, so RaphnetPhysicalDeviceManager decides "no adapter found" and
 # the SDL2 / Java HIDDeviceManager handles everything that's actually
 # present.
-if (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+if (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch"
+    OR CMAKE_SYSTEM_NAME STREQUAL "PS5")
     set(_LUS_HIDAPI_STUB_DIR ${CMAKE_CURRENT_BINARY_DIR}/hidapi_stub)
     file(MAKE_DIRECTORY ${_LUS_HIDAPI_STUB_DIR})
     file(WRITE ${_LUS_HIDAPI_STUB_DIR}/hidapi.h [=[

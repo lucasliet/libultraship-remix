@@ -48,7 +48,7 @@ target_include_directories(libultraship
 #=================== Linking ===================
 if(INCLUDE_MPQ_SUPPORT)
     if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS"
-        AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+        AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch" AND NOT CMAKE_SYSTEM_NAME STREQUAL "PS5")
         target_link_libraries(libultraship PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,storm>")
     else()
         target_link_libraries(libultraship PUBLIC storm)
@@ -91,7 +91,7 @@ target_link_libraries(libultraship PRIVATE hidapi::hidapi)
 # libnx homebrew has no usable USB host stack for WUP-028 — default the
 # adapter off there so the libusb FetchContent never runs (its CMake
 # rejects unknown platforms outright).
-if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch" OR CMAKE_SYSTEM_NAME STREQUAL "PS5")
     set(_LUS_GCADAPTER_DEFAULT OFF)
 else()
     set(_LUS_GCADAPTER_DEFAULT ON)
@@ -99,7 +99,7 @@ endif()
 option(LUS_GCADAPTER "Native GameCube adapter support (libusb)" ${_LUS_GCADAPTER_DEFAULT})
 option(LUS_GCADAPTER_FETCH_LIBUSB "Always build libusb from source instead of using the system one" OFF)
 if (LUS_GCADAPTER AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS"
-    AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch"
+    AND NOT CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch" AND NOT CMAKE_SYSTEM_NAME STREQUAL "PS5"
     AND NOT BATTLESHIP_UWP)
     set(_LUS_LIBUSB_TARGET "")
     if (NOT LUS_GCADAPTER_FETCH_LIBUSB AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME MATCHES "BSD"))
@@ -184,6 +184,11 @@ if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     # libSDL2.a is static: its EGL backend pulls EGL -> glapi -> drm_nouveau
     # (the same set switch-sdl2's sdl2.pc lists), which must follow SDL2.
     target_link_libraries(libultraship PRIVATE SDL2 EGL glapi drm_nouveau glad)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "PS5")
+    target_include_directories(libultraship PRIVATE ${PS5_OPENGL_PREFIX}/include)
+    target_link_libraries(libultraship PRIVATE SDL2::SDL2-static)
 endif()
 
 target_link_libraries(libultraship PUBLIC prism)

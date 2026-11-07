@@ -2,7 +2,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#elif defined(__SWITCH__)
+#elif defined(__SWITCH__) || defined(__PS5__)
 // NRO homebrew: no dynamic loader — dlfcn.h doesn't exist in the devkitA64
 // newlib. gfxPointerInLoadedModule stubs to "not in a mod module" below.
 #include <unistd.h>
@@ -317,7 +317,7 @@ bool gfxPointerInLoadedModule(const void* ptr) {
     // leftover (0x01000000, 0x0E000000, ...) would land "inside a module"
     // and the SETTIMG/G_VTX guards would never fire.
     return mod != nullptr && mod != GetModuleHandleA(nullptr);
-#elif defined(__SWITCH__)
+#elif defined(__SWITCH__) || defined(__PS5__)
     // No dynamic loader and no mod modules on Switch — no pointer can
     // live in a mod image.
     return false;
@@ -498,7 +498,7 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
     // address pointed at unmapped heap. (mincore cannot detect PROT_NONE
     // mappings, but glibc does not place PROT_NONE at the brk frontier, and
     // "mapped but unreadable" is far rarer than "unmapped".)
-#if !defined(__SWITCH__) // devkitA64 newlib has no sysconf
+#if !defined(__SWITCH__) && !defined(__PS5__) // devkitA64 newlib has no sysconf
     static const uintptr_t sPageSize = static_cast<uintptr_t>(sysconf(_SC_PAGESIZE));
     uintptr_t start = reinterpret_cast<uintptr_t>(ptr) & ~(sPageSize - 1);
     uintptr_t end = reinterpret_cast<uintptr_t>(ptr) + size;
@@ -513,7 +513,7 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
 #else
     using MincoreVec = unsigned char;
 #endif
-#if defined(__SWITCH__)
+#if defined(__SWITCH__) || defined(__PS5__)
     // No mmap/mincore in the devkitA64 newlib — every Switch pointer lives
     // in fully committed heap/rodata, so the residency probe is vacuous.
     return true;

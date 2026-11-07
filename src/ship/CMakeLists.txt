@@ -17,6 +17,12 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/CoreAudioAudioPlayer.*")
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "PS5")
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/SDLAudioPlayer.*")
+else()
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/PS5AudioPlayer.*")
+endif()
+
 source_group("audio" FILES ${Source_Files__Audio})
 target_sources(libultraship PRIVATE ${Source_Files__Audio})
 
@@ -94,6 +100,10 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     set(Source_Files__Port
         ${CMAKE_CURRENT_SOURCE_DIR}/port/switch/SwitchImpl.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/port/switch/SwitchController.cpp
+    )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "PS5")
+    set(Source_Files__Port
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/ps5/PS5Impl.cpp
     )
 endif()
 

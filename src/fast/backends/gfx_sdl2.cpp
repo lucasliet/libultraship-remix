@@ -33,6 +33,11 @@
 #include <switch.h>
 #include <glad/glad.h>
 #include "ship/port/switch/SwitchImpl.h"
+#elif defined(__PS5__)
+#include <SDL2/SDL.h>
+#define GL_GLEXT_PROTOTYPES 1
+#include <GL/gl.h>
+#include "ship/port/ps5/PS5Impl.h"
 #else
 #include <SDL2/SDL.h>
 #define GL_GLEXT_PROTOTYPES 1
@@ -396,6 +401,10 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+#elif defined(__PS5__)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 #endif
 
 #ifdef _WIN32
@@ -422,9 +431,11 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
 #ifdef __SWITCH__
     // For Switch we need to set the window width before creating the window
     Ship::Switch::GetDisplaySize(&mWindowWidth, &mWindowHeight);
+#elif defined(__PS5__)
+    Ship::PS5::GetDisplaySize(&mWindowWidth, &mWindowHeight);
 #endif
 
-#ifdef __IOS__
+#if defined(__IOS__) || defined(__PS5__)
     Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_SHOWN;
 #else
     Uint32 flags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
@@ -456,7 +467,7 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     }
 
     if (use_opengl) {
-#ifndef __SWITCH__
+#if !defined(__SWITCH__) && !defined(__PS5__)
         SDL_GL_GetDrawableSize(mWnd, &mWindowWidth, &mWindowHeight);
 
         if (startFullScreen) {
@@ -672,6 +683,8 @@ void GfxWindowBackendSDL2::HandleSingleEvent(SDL_Event& event) {
                 case SDL_WINDOWEVENT_SIZE_CHANGED:
 #ifdef __SWITCH__
                     Ship::Switch::GetDisplaySize(&mWindowWidth, &mWindowHeight);
+#elif defined(__PS5__)
+                    Ship::PS5::GetDisplaySize(&mWindowWidth, &mWindowHeight);
 #elif __APPLE__
                     SDL_GetWindowSize(mWnd, &mWindowWidth, &mWindowHeight);
 #else

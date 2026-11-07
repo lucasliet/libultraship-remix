@@ -80,5 +80,9 @@ class AudioPlayer {
 #include "CoreAudioAudioPlayer.h"
 #endif
 
+#ifdef __PS5__
+#include "PS5AudioPlayer.h"
+#else
 #include "SDLAudioPlayer.h"
+#endif
 #include "NullAudioPlayer.h"

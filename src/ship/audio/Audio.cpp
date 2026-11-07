@@ -26,7 +26,11 @@ void Audio::InitAudioPlayer() {
             break;
 #endif
         case AudioBackend::SDL:
+#ifdef __PS5__
+            mAudioPlayer = std::make_shared<PS5AudioPlayer>(this->mAudioSettings);
+#else
             mAudioPlayer = std::make_shared<SDLAudioPlayer>(this->mAudioSettings);
+#endif
             break;
         default:
             mAudioPlayer = std::make_shared<NullAudioPlayer>(this->mAudioSettings);

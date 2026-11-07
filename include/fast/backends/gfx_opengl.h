@@ -3,6 +3,16 @@
 
 #include <string>
 
+// macOS and the PS5 (ps5-opengl) only expose a core-profile context: GLSL 410 core and a bound VAO.
+#if defined(__APPLE__) || defined(__PS5__)
+#define LUS_GL_CORE_PROFILE 1
+#endif
+#if defined(__PS5__)
+#define LUS_GL_CORE_GLSL_VERSION "#version 330 core"
+#else
+#define LUS_GL_CORE_GLSL_VERSION "#version 410 core"
+#endif
+
 #include "gfx_rendering_api.h"
 #include "../interpreter.h"
 
@@ -21,6 +31,11 @@
 #elif __SWITCH__
 #include <SDL2/SDL.h>
 #include <glad/glad.h>
+#elif defined(__PS5__)
+#include <SDL2/SDL.h>
+#define GL_GLEXT_PROTOTYPES 1
+#include <GL/gl.h>
+#include <GL/glext.h>
 #elif USE_OPENGLES
 #include <SDL2/SDL.h>
 #include <GLES3/gl3.h>
@@ -235,7 +250,7 @@ class GfxRenderingAPIOGL final : public GfxRenderingAPI {
     ShaderProgram* mLastLoadedShader = nullptr;
 
     GLuint mOpenglVbo = 0;
-#if defined(__APPLE__) || defined(USE_OPENGLES)
+#if defined(LUS_GL_CORE_PROFILE) || defined(USE_OPENGLES)
     GLuint mOpenglVao;
 #endif
 

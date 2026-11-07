@@ -29,6 +29,8 @@
 #include <pwd.h>
 #elif defined(__SWITCH__)
 #include "ship/port/switch/SwitchImpl.h"
+#elif defined(__PS5__)
+#include "ship/port/ps5/PS5Impl.h"
 #endif
 
 
@@ -248,6 +250,8 @@ bool Context::InitResourceManager(const std::vector<std::string>& archivePaths,
 #if defined(__SWITCH__)
         Ship::Switch::ThrowMissingOTR(mMainPath);
         printf("Main OTR file not found!\n");
+#elif defined(__PS5__)
+        Ship::PS5::ThrowMissingOTR(mMainPath);
 #else
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "OTR file not found",
                                  "Main OTR file not found. Please generate one", nullptr);
@@ -466,6 +470,10 @@ std::string Context::GetShortName() {
 }
 
 std::string Context::GetAppBundlePath() {
+#if defined(__PS5__)
+    return PS5::GetBundleDirectory();
+#endif
+
 #if defined(__ANDROID__)
     const char* externaldir = SDL_AndroidGetExternalStoragePath();
     if (externaldir != NULL) {
@@ -535,6 +543,10 @@ std::string Context::GetAppBundlePath() {
 }
 
 std::string Context::GetAppDirectoryPath(std::string appName) {
+#if defined(__PS5__)
+    return PS5::GetDataDirectory();
+#endif
+
 #if defined(__ANDROID__)
     const char* externaldir = SDL_AndroidGetExternalStoragePath();
     if (externaldir != NULL) {

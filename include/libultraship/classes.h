@@ -38,4 +38,7 @@
 #ifdef __SWITCH__
 #include "ship/port/switch/SwitchImpl.h"
 #endif
+#ifdef __PS5__
+#include "ship/port/ps5/PS5Impl.h"
+#endif
 #endif
