@@ -9,6 +9,9 @@ find_package(SDL2 CONFIG REQUIRED)
 set_target_properties(SDL2::SDL2-static PROPERTIES INTERFACE_LINK_LIBRARIES "")
 target_link_libraries(ImGui PUBLIC SDL2::SDL2-static)
 target_include_directories(ImGui PUBLIC ${PS5_OPENGL_PREFIX}/include)
+# ImGui's built-in gl3w loader dlopens libGL, which a native title cannot do; GL is linked statically.
+target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_CUSTOM GL_GLEXT_PROTOTYPES=1)
+target_compile_options(ImGui PRIVATE "SHELL:-include GL/gl.h" "SHELL:-include GL/glext.h")
 #=================== nlohmann-json ===================
 find_package(nlohmann_json QUIET)
 if (NOT ${nlohmann_json_FOUND})
