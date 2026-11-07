@@ -35,6 +35,9 @@ if (NOT ${tinyxml2_FOUND})
 endif()
 
 #=================== spdlog ===================
+# spdlog's registry builds a colored stdout logger on first use; the title has no console and that
+# sink crashed it during startup, so only the file logger Context::InitLogging installs exists.
+add_compile_definitions(SPDLOG_DISABLE_DEFAULT_LOGGER)
 find_package(spdlog QUIET)
 if (NOT ${spdlog_FOUND})
     add_compile_definitions(SPDLOG_PREVENT_CHILD_FD) # disables fcntl(FD_CLOEXEC)
