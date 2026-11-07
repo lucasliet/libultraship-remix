@@ -34,6 +34,13 @@
 #endif
 
 
+#ifdef __PS5__
+extern "C" void ps5_boot_trace(const char* step);
+#define LUS_PS5_BOOT_TRACE(step) ps5_boot_trace(step)
+#else
+#define LUS_PS5_BOOT_TRACE(step) ((void)0)
+#endif
+
 namespace Ship {
 std::weak_ptr<Context> Context::mContext;
 
@@ -121,10 +128,12 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
 
     try {
         // Setup Logging
+        LUS_PS5_BOOT_TRACE("InitLogging: thread pool");
         spdlog::init_thread_pool(8192, 1);
         std::vector<spdlog::sink_ptr> sinks;
 
-#if (!defined(_WIN32)) || defined(_DEBUG)
+// The PS5 title has no console; its stdout goes to a file the runtime owns.
+#if ((!defined(_WIN32)) || defined(_DEBUG)) && !defined(__PS5__)
 #if defined(_DEBUG) && defined(_WIN32)
         // LLVM on Windows allocs a hidden console in its entrypoint function.
         // We free that console here to create our own.
@@ -161,6 +170,7 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         sinks.push_back(systemConsoleSink);
 #endif
 
+        LUS_PS5_BOOT_TRACE("InitLogging: log directory");
         auto logPath = GetPathRelativeToAppDirectory(("logs/" + GetName() + ".log"));
         // A fresh per-user app-data directory (notably UWP LocalState) does
         // not contain the logs subdirectory. spdlog's rotating sink creates
@@ -172,6 +182,7 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
             std::cout << "Log directory creation failed: " << logDirectoryError.message() << std::endl;
             return false;
         }
+        LUS_PS5_BOOT_TRACE("InitLogging: file sink");
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logPath, 1024 * 1024 * 10, 10);
         sinks.push_back(fileSink);
 #ifdef _DEBUG
@@ -186,6 +197,7 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
 #endif
         GetLogger()->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%@] [%l] %v");
 
+        LUS_PS5_BOOT_TRACE("InitLogging: register");
         spdlog::register_logger(GetLogger());
         spdlog::set_default_logger(GetLogger());
         return true;
