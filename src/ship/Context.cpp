@@ -128,8 +128,9 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
 
     try {
         // Setup Logging
-        LUS_PS5_BOOT_TRACE("InitLogging: thread pool");
+#ifndef __PS5__
         spdlog::init_thread_pool(8192, 1);
+#endif
         std::vector<spdlog::sink_ptr> sinks;
 
 // The PS5 title has no console; its stdout goes to a file the runtime owns.
@@ -185,7 +186,12 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         LUS_PS5_BOOT_TRACE("InitLogging: file sink");
         auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logPath, 1024 * 1024 * 10, 10);
         sinks.push_back(fileSink);
-#ifdef _DEBUG
+#if defined(__PS5__)
+        // The PS5 title logs synchronously: spdlog's async thread pool crashed it at startup.
+        mLogger = std::make_shared<spdlog::logger>(GetName(), sinks.begin(), sinks.end());
+        GetLogger()->set_level(releaseBuildLogLevel);
+        GetLogger()->flush_on(spdlog::level::info);
+#elif defined(_DEBUG)
         mLogger = std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
         GetLogger()->set_level(debugBuildLogLevel);
         GetLogger()->flush_on(spdlog::level::trace);
@@ -202,6 +208,10 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         spdlog::set_default_logger(GetLogger());
         return true;
     } catch (const spdlog::spdlog_ex& ex) {
+        std::cout << "Log initialization failed: " << ex.what() << std::endl;
+        return false;
+    } catch (const std::exception& ex) {
+        LUS_PS5_BOOT_TRACE(ex.what());
         std::cout << "Log initialization failed: " << ex.what() << std::endl;
         return false;
     }
