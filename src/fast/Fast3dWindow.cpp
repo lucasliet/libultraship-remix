@@ -1,4 +1,6 @@
 #include "fast/Fast3dWindow.h"
+#include <chrono>
+#include <spdlog/spdlog.h>
 
 #include "ship/Context.h"
 #include "ship/config/Config.h"
@@ -214,11 +216,35 @@ bool Fast3dWindow::DrawAndRunGraphicsCommands(Gfx* commands, const std::unordere
 
     auto gui = wnd->GetGui();
     wnd->GetMouseStateManager()->StartFrame();
+#ifdef __PS5__
+    // Temporary: the PS5 title runs 20-50x slower than real time; find the slow frame phase.
+    using PhaseClock = std::chrono::steady_clock;
+    const auto t0 = PhaseClock::now();
+    gui->StartDraw();
+    const auto t1 = PhaseClock::now();
+    mInterpreter->StartFrame();
+    const auto t2 = PhaseClock::now();
+    mInterpreter->Run(commands, mtxReplacements);
+    const auto t3 = PhaseClock::now();
+    gui->EndDraw();
+    const auto t4 = PhaseClock::now();
+    mInterpreter->EndFrame();
+    const auto t5 = PhaseClock::now();
+    auto ms = [](PhaseClock::time_point a, PhaseClock::time_point b) {
+        return std::chrono::duration<double, std::milli>(b - a).count();
+    };
+    if (ms(t0, t5) > 50.0) {
+        SPDLOG_WARN("ps5 frame phases ms: gui_start={:.1f} interp_start={:.1f} run={:.1f} gui_end={:.1f} "
+                    "interp_end={:.1f}",
+                    ms(t0, t1), ms(t1, t2), ms(t2, t3), ms(t3, t4), ms(t4, t5));
+    }
+#else
     gui->StartDraw();
     mInterpreter->StartFrame();
     mInterpreter->Run(commands, mtxReplacements);
     gui->EndDraw();
     mInterpreter->EndFrame();
+#endif
 
     return true;
 }
