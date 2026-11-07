@@ -223,6 +223,9 @@ void Gui::ImGuiBackendInit() {
         case WindowBackend::FAST3D_SDL_OPENGL:
 #ifdef __APPLE__
             ImGui_ImplOpenGL3_Init("#version 410 core");
+#elif defined(__PS5__)
+            // ps5-opengl exposes a 3.3 core context only; GLSL 120 shaders fault in Mesa there.
+            ImGui_ImplOpenGL3_Init("#version 330 core");
 #elif USE_OPENGLES
             ImGui_ImplOpenGL3_Init("#version 300 es");
 #else
