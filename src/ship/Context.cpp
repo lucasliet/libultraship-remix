@@ -190,7 +190,9 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         // The PS5 title logs synchronously: spdlog's async thread pool crashed it at startup.
         mLogger = std::make_shared<spdlog::logger>(GetName(), sinks.begin(), sinks.end());
         GetLogger()->set_level(releaseBuildLogLevel);
-        GetLogger()->flush_on(spdlog::level::info);
+        // Each flush to /data costs tens of milliseconds on the console; flushing every info line
+        // slowed the game 20-50x.
+        GetLogger()->flush_on(spdlog::level::err);
 #elif defined(_DEBUG)
         mLogger = std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
         GetLogger()->set_level(debugBuildLogLevel);
