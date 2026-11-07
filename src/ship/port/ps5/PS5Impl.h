@@ -17,8 +17,8 @@ class PS5 {
     static void GetDisplaySize(int* width, int* height);
 
     /**
-     * Returns the writable folder for config, saves, logs and the extracted archive:
-     * /data/BattleShip-Remix, or the title's /download0 when /data cannot be written.
+     * Returns the folder for config, saves, logs and the extracted archive: the title folder
+     * itself (/app0), which is writable because the title ships as a folder.
      * @return the folder path, without a trailing slash
      */
     static std::string GetDataDirectory();
