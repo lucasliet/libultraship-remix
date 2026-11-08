@@ -182,7 +182,9 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
             std::cout << "Log directory creation failed: " << logDirectoryError.message() << std::endl;
             return false;
         }
-        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logPath, 1024 * 1024 * 10, 10);
+        // max_files=0 with rotate_on_open: the file is emptied at every launch and keeps no backups, so the log
+        // only ever holds the last run (a rotation inside a run just truncates it at 10 MB).
+        auto fileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(logPath, 1024 * 1024 * 10, 0, true);
         sinks.push_back(fileSink);
 #if defined(__PS5__)
         // The PS5 title logs synchronously: spdlog's async thread pool crashed it at startup.
