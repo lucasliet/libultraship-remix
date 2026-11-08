@@ -61,6 +61,12 @@ class Archive : public std::enable_shared_from_this<Archive> {
 
     virtual std::shared_ptr<File> LoadFile(const std::string& filePath) = 0;
     virtual std::shared_ptr<File> LoadFile(uint64_t hash) = 0;
+    /**
+     * @brief Loads at most the first maxBytes of a file, for callers that only need its header.
+     * The default loads the whole file and truncates it; archives that can stop early override it.
+     * @return The file prefix, or nullptr when the file is missing.
+     */
+    virtual std::shared_ptr<File> LoadFilePrefix(const std::string& filePath, size_t maxBytes);
     std::shared_ptr<std::unordered_map<uint64_t, std::string>> ListFiles();
     std::shared_ptr<std::unordered_map<uint64_t, std::string>> ListFiles(const std::string& filter);
     bool HasFile(const std::string& filePath);

@@ -56,6 +56,15 @@ std::shared_ptr<File> ArchiveManager::LoadFile(uint64_t hash) {
     return archive->LoadFile(hash);
 }
 
+std::shared_ptr<File> ArchiveManager::LoadFilePrefix(const std::string& filePath, size_t maxBytes) {
+    auto archive = mFileToArchive[CRC64(filePath.c_str())];
+    if (archive == nullptr) {
+        return nullptr;
+    }
+
+    return archive->LoadFilePrefix(filePath, maxBytes);
+}
+
 bool ArchiveManager::HasFile(const std::string& filePath) {
     return HasFile(CRC64(filePath.c_str()));
 }

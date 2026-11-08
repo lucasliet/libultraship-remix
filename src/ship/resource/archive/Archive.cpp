@@ -159,6 +159,14 @@ std::shared_ptr<std::unordered_map<uint64_t, std::string>> Archive::ListFiles(co
     return result;
 }
 
+std::shared_ptr<File> Archive::LoadFilePrefix(const std::string& filePath, size_t maxBytes) {
+    auto file = LoadFile(filePath);
+    if (file != nullptr && file->Buffer != nullptr && file->Buffer->size() > maxBytes) {
+        file->Buffer->resize(maxBytes);
+    }
+    return file;
+}
+
 bool Archive::HasFile(const std::string& filePath) {
     return HasFile(CRC64(filePath.c_str()));
 }

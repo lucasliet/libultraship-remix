@@ -85,11 +85,48 @@ extern "C" void portRelocFixupTextureAtRuntime(const void *addr, unsigned int nu
  * un-hooked walker. */
 static Fast::DLBoundsCheckFn sDLBoundsCheck = nullptr;
 static Fast::AddressClassifierFn sAddressClassifier = nullptr;
+static Fast::DLRangeLookupFn sDLRangeLookup = nullptr;
+/* Last range the walk-bounds check confirmed in this Run; reset at the start of every Run. A fight walks
+ * about 25k commands per frame and the callback per command cost the Switch ~9 ms on the 1P VS card. */
+struct WalkRange {
+    uintptr_t lo = 0;
+    uintptr_t hi = 0;
+    int result = 0;
+};
+/* Several ranges: the walk alternates between a parent DL and the child DLs it calls, which live in
+ * different files. */
+static constexpr size_t kWalkRangeCount = 8;
+static WalkRange sWalkRanges[kWalkRangeCount];
+static size_t sWalkRangeNext = 0;
 
 /* Return-code constants matching public API documentation. */
 static constexpr int kDLBoundsUnknown    = 0;
 static constexpr int kDLBoundsInRange    = 1;
 static constexpr int kDLBoundsWalkedPast = 2;
+
+/**
+ * Per-command walk-bounds check: answers from the last confirmed range when cmd is still inside it,
+ * otherwise asks the game's range lookup (or plain bounds check) and remembers the new range.
+ * @return One of the kDLBounds* codes.
+ */
+static int WalkBoundsCheck(uintptr_t cmd) {
+    for (const WalkRange& range : sWalkRanges) {
+        if ((cmd >= range.lo) && (cmd < range.hi)) {
+            return range.result;
+        }
+    }
+    if (sDLRangeLookup == nullptr) {
+        return (sDLBoundsCheck != nullptr) ? sDLBoundsCheck(cmd) : kDLBoundsUnknown;
+    }
+    uintptr_t base = 0;
+    size_t size = 0;
+    const int result = sDLRangeLookup(cmd, &base, &size);
+    if ((result != kDLBoundsWalkedPast) && (size != 0)) {
+        sWalkRanges[sWalkRangeNext] = WalkRange{ base, base + size, result };
+        sWalkRangeNext = (sWalkRangeNext + 1) % kWalkRangeCount;
+    }
+    return result;
+}
 
 #include "ship/window/gui/Gui.h"
 #include "ship/resource/ResourceManager.h"
@@ -801,6 +838,10 @@ void DumpDLDiag(void* badCmd, const char* reason) {
 
 void RegisterDLBoundsCheck(DLBoundsCheckFn fn) {
     sDLBoundsCheck = fn;
+}
+
+void RegisterDLRangeLookup(DLRangeLookupFn fn) {
+    sDLRangeLookup = fn;
 }
 
 void RegisterAddressClassifier(AddressClassifierFn fn) {
@@ -5787,7 +5828,7 @@ bool gfx_dl_handler_common(F3DGfx** cmd0) {
          * gcDrawMObjForDObj G_ENDDL terminator (decomp side) avoid in
          * the cases we've measured. */
         uintptr_t subAddr = (uintptr_t)subGFX;
-        if (sDLBoundsCheck && sDLBoundsCheck(subAddr) == kDLBoundsWalkedPast) {
+        if (WalkBoundsCheck(subAddr) == kDLBoundsWalkedPast) {
             static int sRejectCount = 0;
             if (sRejectCount < 10) {
                 sRejectCount++;
@@ -6905,7 +6946,7 @@ static void gfx_step() {
      * Run's outer loop will pick up the parent frame (or exit if stack is
      * empty). */
     {
-        if (sDLBoundsCheck && sDLBoundsCheck((uintptr_t)cmd) == kDLBoundsWalkedPast) {
+        if (WalkBoundsCheck((uintptr_t)cmd) == kDLBoundsWalkedPast) {
             static int sCount = 0;
             static int sTotal = 0;
             sTotal++;
@@ -7317,6 +7358,7 @@ void Interpreter::RunGuiOnly() {
 }
 
 void Interpreter::Run(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtx_replacements) {
+    std::fill(std::begin(sWalkRanges), std::end(sWalkRanges), WalkRange{});
     SpReset();
     mFrameTriAreaPx = 0.0f;
 

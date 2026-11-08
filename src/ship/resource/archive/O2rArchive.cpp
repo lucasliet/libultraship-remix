@@ -4,6 +4,8 @@
 #include "ship/window/Window.h"
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
+
 namespace Ship {
 O2rArchive::O2rArchive(const std::string& archivePath) : Archive(archivePath) {
 }
@@ -63,6 +65,42 @@ std::shared_ptr<File> O2rArchive::LoadFile(const std::string& filePath) {
 
     fileToLoad->IsLoaded = true;
 
+    return fileToLoad;
+}
+
+std::shared_ptr<File> O2rArchive::LoadFilePrefix(const std::string& filePath, size_t maxBytes) {
+    if (mZipArchive == nullptr) {
+        return nullptr;
+    }
+
+    auto zipEntryIndex = zip_name_locate(mZipArchive, filePath.c_str(), 0);
+    if (zipEntryIndex < 0) {
+        return nullptr;
+    }
+
+    struct zip_stat zipEntryStat;
+    zip_stat_init(&zipEntryStat);
+    if (zip_stat_index(mZipArchive, zipEntryIndex, 0, &zipEntryStat) != 0 || zipEntryStat.size == 0) {
+        return nullptr;
+    }
+
+    struct zip_file* zipEntryFile = zip_fopen_index(mZipArchive, zipEntryIndex, 0);
+    if (!zipEntryFile) {
+        return nullptr;
+    }
+
+    const size_t bytesWanted = std::min<size_t>(maxBytes, zipEntryStat.size);
+    auto fileToLoad = std::make_shared<File>();
+    fileToLoad->Buffer = std::make_shared<std::vector<char>>(bytesWanted);
+    const zip_int64_t bytesRead = zip_fread(zipEntryFile, fileToLoad->Buffer->data(), bytesWanted);
+    zip_fclose(zipEntryFile);
+    if (bytesRead < 0) {
+        SPDLOG_ERROR("Error reading the first {} bytes of {} in zip archive {}.", bytesWanted, filePath, GetPath());
+        return nullptr;
+    }
+
+    fileToLoad->Buffer->resize(static_cast<size_t>(bytesRead));
+    fileToLoad->IsLoaded = true;
     return fileToLoad;
 }
 

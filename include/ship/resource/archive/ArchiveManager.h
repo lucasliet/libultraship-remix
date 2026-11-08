@@ -30,6 +30,11 @@ class ArchiveManager {
     bool IsLoaded();
     std::shared_ptr<File> LoadFile(const std::string& filePath);
     std::shared_ptr<File> LoadFile(uint64_t hash);
+    /**
+     * @brief Loads at most the first maxBytes of a file from the archive that owns it.
+     * @return The file prefix, or nullptr when no archive has the file.
+     */
+    std::shared_ptr<File> LoadFilePrefix(const std::string& filePath, size_t maxBytes);
     bool WriteFile(std::shared_ptr<Archive> archive, const std::string& filename, const std::vector<uint8_t>& data);
     bool HasFile(const std::string& filePath);
     bool HasFile(uint64_t hash);

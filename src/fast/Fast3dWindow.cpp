@@ -1,5 +1,7 @@
 #include "fast/Fast3dWindow.h"
 
+#include <chrono>
+
 #include "ship/Context.h"
 #include "ship/config/Config.h"
 #include "ship/controller/controldeck/ControlDeck.h"
@@ -216,9 +218,15 @@ bool Fast3dWindow::DrawAndRunGraphicsCommands(Gfx* commands, const std::unordere
     wnd->GetMouseStateManager()->StartFrame();
     gui->StartDraw();
     mInterpreter->StartFrame();
+    const auto runStart = std::chrono::steady_clock::now();
     mInterpreter->Run(commands, mtxReplacements);
+    const auto runEnd = std::chrono::steady_clock::now();
     gui->EndDraw();
+    const auto endFrameStart = std::chrono::steady_clock::now();
     mInterpreter->EndFrame();
+    mLastRunMs = std::chrono::duration<double, std::milli>(runEnd - runStart).count();
+    mLastEndFrameMs =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - endFrameStart).count();
 
     return true;
 }

@@ -60,6 +60,14 @@ class Fast3dWindow : public Ship::Window {
     void EnableSRGBMode();
     bool DrawAndRunGraphicsCommands(Gfx* commands, const std::unordered_map<Mtx*, MtxF>& mtxReplacements);
     bool PresentCurrentFramebuffer();
+    /** CPU time of the last display-list walk (Interpreter::Run), excluding the end-of-frame present. */
+    double GetLastRunMs() const {
+        return mLastRunMs;
+    }
+    /** Time of the last end-of-frame (backend flush, swap and frame pacing). */
+    double GetLastEndFrameMs() const {
+        return mLastEndFrameMs;
+    }
 
     std::weak_ptr<Interpreter> GetInterpreterWeak() const;
 
@@ -75,5 +83,7 @@ class Fast3dWindow : public Ship::Window {
     GfxRenderingAPI* mRenderingApi;
     GfxWindowBackend* mWindowManagerApi;
     std::shared_ptr<Interpreter> mInterpreter = nullptr;
+    double mLastRunMs = 0.0;
+    double mLastEndFrameMs = 0.0;
 };
 } // namespace Fast

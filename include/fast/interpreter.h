@@ -770,6 +770,14 @@ const char* GfxGetOpcodeName(int8_t opcode);
 using DLBoundsCheckFn = int (*)(uintptr_t addr);
 void RegisterDLBoundsCheck(DLBoundsCheckFn fn);
 
+/* Span-returning variant of the bounds check, used by gfx_step's per-command walk check. It also writes
+ * the span of addresses that share the returned answer (IN_RANGE or UNKNOWN; empty for WALKED_PAST), so
+ * the walker can skip the callback inside that span until the next Run (the registry never changes
+ * during a walk).
+ * Optional: without it gfx_step calls DLBoundsCheckFn for every command. */
+using DLRangeLookupFn = int (*)(uintptr_t addr, uintptr_t* range_base, size_t* range_size);
+void RegisterDLRangeLookup(DLRangeLookupFn fn);
+
 /* Address classifier for diag dumps. Writes a human-readable label
  * (e.g. "scene_arena+0x4528") into buf. Returns nonzero if classified. */
 using AddressClassifierFn = int (*)(uintptr_t addr, char* buf, size_t buf_size);
