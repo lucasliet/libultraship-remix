@@ -440,6 +440,14 @@ class Interpreter {
     void SetMaxFrameLatency(int latency);
     ShaderPrewarmProgress PrewarmShaders(std::span<const ShaderPermutation> permutations, size_t startIndex = 0,
                                          size_t maxNewPrograms = (std::numeric_limits<size_t>::max)());
+    // Shader programs compiled on demand while rendering (cache misses after PrewarmShaders) and the
+    // time they took, so the game can attribute a frame stall to shader compilation from its log.
+    uint32_t GetRuntimeShaderCompiles() const {
+        return mRuntimeShaderCompiles;
+    }
+    double GetRuntimeShaderCompileMs() const {
+        return mRuntimeShaderCompileMs;
+    }
     void SetTextureFilter(FilteringMode mode);
     void EnableSrgbMode();
     int CreateFrameBuffer(uint32_t width, uint32_t height, uint32_t native_width, uint32_t native_height,
@@ -638,6 +646,8 @@ class Interpreter {
     std::map<ColorCombinerKey, ColorCombiner> mColorCombinerPool; // color_combiner_pool;
     std::map<ColorCombinerKey, ColorCombiner>::iterator mPrevCombiner = mColorCombinerPool.end();
     std::set<ShaderProgramKey> mFailedShaderKeys;
+    uint32_t mRuntimeShaderCompiles = 0;
+    double mRuntimeShaderCompileMs = 0.0;
     uint8_t* mTexUploadBuffer = nullptr;
 
     GfxDimensions mGfxCurrentWindowDimensions{}; // gfx_current_window_dimensions;

@@ -23,6 +23,7 @@
 #include <any>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -827,7 +828,11 @@ ShaderProgram* Interpreter::LookupOrCreateShaderProgram(uint64_t id0, uint64_t i
     ShaderProgram* prg = mRapi->LookupShader(key);
     if (prg == nullptr) {
         mRapi->UnloadShader(mRenderingState.mShaderProgram);
+        const auto compileStart = std::chrono::steady_clock::now();
         prg = mRapi->CreateAndLoadNewShader(key);
+        mRuntimeShaderCompiles++;
+        mRuntimeShaderCompileMs +=
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - compileStart).count();
         mRenderingState.mShaderProgram = prg;
         if (prg == nullptr) {
             mFailedShaderKeys.insert(key);
