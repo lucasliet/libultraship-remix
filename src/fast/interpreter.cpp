@@ -42,6 +42,7 @@
 #include <string>
 
 #include "fast/interpreter.h"
+#include "fast/dl_walk_bounds.h"
 #include "fast/lus_gbi.h"
 #include "fast/backends/gfx_window_manager_api.h"
 #include "fast/backends/gfx_rendering_api.h"
@@ -99,31 +100,42 @@ static constexpr size_t kWalkRangeCount = 8;
 static WalkRange sWalkRanges[kWalkRangeCount];
 static size_t sWalkRangeNext = 0;
 
-/* Return-code constants matching public API documentation. */
-static constexpr int kDLBoundsUnknown    = 0;
-static constexpr int kDLBoundsInRange    = 1;
-static constexpr int kDLBoundsWalkedPast = 2;
+using Fast::kDLBoundsInRange;
+using Fast::kDLBoundsUnknown;
+using Fast::kDLBoundsWalkedPast;
 
 /**
- * Per-command walk-bounds check: answers from the last confirmed range when cmd is still inside it,
- * otherwise asks the game's range lookup (or plain bounds check) and remembers the new range.
+ * Per-command walk-bounds check: answers from the last confirmed span when cmd is still inside it,
+ * otherwise asks the game's range lookup (or plain bounds check) and remembers the new span.
+ * @param cmd Address of the command about to be walked or pushed.
+ * @param spanStart Receives the start of the span that answered: for kDLBoundsWalkedPast, the end of
+ *        the registered range cmd lies after. May be nullptr.
  * @return One of the kDLBounds* codes.
  */
-static int WalkBoundsCheck(uintptr_t cmd) {
+static int WalkBoundsCheck(uintptr_t cmd, uintptr_t* spanStart = nullptr) {
     for (const WalkRange& range : sWalkRanges) {
         if ((cmd >= range.lo) && (cmd < range.hi)) {
+            if (spanStart != nullptr) {
+                *spanStart = range.lo;
+            }
             return range.result;
         }
     }
     if (sDLRangeLookup == nullptr) {
+        if (spanStart != nullptr) {
+            *spanStart = cmd;
+        }
         return (sDLBoundsCheck != nullptr) ? sDLBoundsCheck(cmd) : kDLBoundsUnknown;
     }
     uintptr_t base = 0;
     size_t size = 0;
     const int result = sDLRangeLookup(cmd, &base, &size);
-    if ((result != kDLBoundsWalkedPast) && (size != 0)) {
+    if (size != 0) {
         sWalkRanges[sWalkRangeNext] = WalkRange{ base, base + size, result };
         sWalkRangeNext = (sWalkRangeNext + 1) % kWalkRangeCount;
+    }
+    if (spanStart != nullptr) {
+        *spanStart = (size != 0) ? base : cmd;
     }
     return result;
 }
@@ -571,6 +583,25 @@ bool gfxPointerHasReadableBytes(const void* ptr, size_t size) {
 }
 
 } // namespace
+
+/**
+ * Tells whether the walker stepped off the end of a registered range onto cmd. A walk that runs past a
+ * range lands on the commands right after its end, so only those count (Fast::DLWalkSteppedOffRange): the
+ * rest of the walked-past window is the general heap, where legitimate lists live (the widened copies of
+ * packed display lists, static lists, mod buffers). Treating the whole window as a runaway walk dropped
+ * every frame of a scene whenever the allocator placed such a list there. A widened copy that starts right
+ * at the end of a range is accepted too; every copy ends in G_ENDDL.
+ * @param cmd Address of the command about to be walked.
+ * @return true when cmd is one of the first commands after the end of a registered range.
+ */
+static bool SteppedOffRegisteredRange(uintptr_t cmd) {
+    uintptr_t rangeEnd = 0;
+    const int result = WalkBoundsCheck(cmd, &rangeEnd);
+    if (!Fast::DLWalkSteppedOffRange(result, cmd, rangeEnd, sizeof(Fast::F3DGfx))) {
+        return false;
+    }
+    return !portFindNormalizedDisplayListCommand(reinterpret_cast<const Fast::F3DGfx*>(cmd), nullptr, nullptr);
+}
 
 extern "C" void portResetPackedDisplayListCache(void) {
     sPortPackedDisplayListCache.clear();
@@ -6946,7 +6977,7 @@ static void gfx_step() {
      * Run's outer loop will pick up the parent frame (or exit if stack is
      * empty). */
     {
-        if (WalkBoundsCheck((uintptr_t)cmd) == kDLBoundsWalkedPast) {
+        if (SteppedOffRegisteredRange((uintptr_t)cmd)) {
             static int sCount = 0;
             static int sTotal = 0;
             sTotal++;
