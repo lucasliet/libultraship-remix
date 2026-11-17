@@ -105,7 +105,14 @@ std::shared_ptr<File> O2rArchive::LoadFilePrefix(const std::string& filePath, si
 }
 
 bool O2rArchive::Open() {
+#ifdef __SWITCH2__
+    mZipArchive = zip_open(GetPath().c_str(), ZIP_RDONLY, nullptr);
+    if (mZipArchive == nullptr) {
+        mZipArchive = zip_open(GetPath().c_str(), ZIP_CREATE, nullptr);
+    }
+#else
     mZipArchive = zip_open(GetPath().c_str(), ZIP_CREATE, nullptr);
+#endif
     if (mZipArchive == nullptr) {
         SPDLOG_ERROR("Failed to load zip file \"{}\"", GetPath());
         return false;

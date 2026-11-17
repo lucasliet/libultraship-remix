@@ -3,11 +3,11 @@
 
 #include <string>
 
-// macOS and the PS5 (ps5-opengl) only expose a core-profile context: GLSL 410 core and a bound VAO.
-#if defined(__APPLE__) || defined(__PS5__)
+// macOS, PS5 (ps5-opengl), and Switch 2 (OunceVK / Zink) expose a core-profile context: GLSL 330/410 core and a bound VAO.
+#if defined(__APPLE__) || defined(__PS5__) || defined(__SWITCH2__)
 #define LUS_GL_CORE_PROFILE 1
 #endif
-#if defined(__PS5__)
+#if defined(__PS5__) || defined(__SWITCH2__)
 #define LUS_GL_CORE_GLSL_VERSION "#version 330 core"
 #else
 #define LUS_GL_CORE_GLSL_VERSION "#version 410 core"

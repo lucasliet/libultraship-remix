@@ -33,7 +33,7 @@ void Ship::Switch::Init(SwitchPhase phase) {
         case PreInitPhase:
             DetectAppletMode();
             socketInitializeDefault();
-#ifdef DEBUG
+#if defined(DEBUG) || defined(__SWITCH2__)
             nxlinkStdio();
 #endif
             break;
@@ -42,9 +42,11 @@ void Ship::Switch::Init(SwitchPhase phase) {
             appletSetGamePlayRecordingState(true);
             appletHook(&applet_hook_cookie, on_applet_hook, NULL);
             appletSetFocusHandlingMode(AppletFocusHandlingMode_NoSuspend);
+#ifndef __SWITCH2__
             if (!hosversionBefore(8, 0, 0)) {
                 clkrstInitialize();
             }
+#endif
             hidsysInitialize();
             padConfigureInput(8, HidNpadStyleSet_NpadStandard);
             s32 total = 0; // unused
@@ -55,7 +57,9 @@ void Ship::Switch::Init(SwitchPhase phase) {
 
 void Ship::Switch::Exit() {
     socketExit();
+#ifndef __SWITCH2__
     clkrstExit();
+#endif
     appletSetGamePlayRecordingState(false);
 }
 
@@ -131,6 +135,7 @@ void Ship::Switch::GetDisplaySize(int* width, int* height) {
 }
 
 void Ship::Switch::ApplyOverclock(void) {
+#ifndef __SWITCH2__
     SwitchProfiles perfMode = (SwitchProfiles)CVarGetInteger(CVAR_SWITCH_PERF_MODE, (int)Ship::MAXIMUM);
 
     if (perfMode >= 0 && perfMode <= Ship::POWERSAVINGM3) {
@@ -143,6 +148,7 @@ void Ship::Switch::ApplyOverclock(void) {
             clkrstCloseSession(&session);
         }
     }
+#endif
 }
 
 char* Ship::Switch::GetControllerUUID(int controller) {
@@ -169,6 +175,7 @@ static void on_applet_hook(AppletHookType hook, void* param) {
             hasFocus = focus_state == AppletFocusState_InFocus;
 
             if (!hasFocus) {
+#ifndef __SWITCH2__
                 if (hosversionBefore(8, 0, 0)) {
                     pcvSetClockRate(PcvModule_CpuBus, SWITCH_CPU_SPEEDS_VALUES[Ship::STOCK]);
                 } else {
@@ -177,6 +184,7 @@ static void on_applet_hook(AppletHookType hook, void* param) {
                     clkrstSetClockRate(&session, SWITCH_CPU_SPEEDS_VALUES[Ship::STOCK]);
                     clkrstCloseSession(&session);
                 }
+#endif
             } else {
                 Ship::Switch::ApplyOverclock();
                 // reinitialize audio subsystem to fix audio problems after resuming from sleep
@@ -246,19 +254,21 @@ void DetectAppletMode() {
     if (at == AppletType_Application || at == AppletType_SystemApplication)
         return;
 
+    constexpr size_t numRandomTexts = sizeof(RandomTexts) / sizeof(RandomTexts[0]);
     Ship::Switch::ShowErrorApplet("You've launched the Ship while in Applet mode.\n"
                                   "Please relaunch while in full-memory mode.\n"
                                   "Hold R when opening any game to enter HBMenu.\n\n"
                                   "%s.",
-                                  RandomTexts[rand() % 25]);
+                                  RandomTexts[rand() % numRandomTexts]);
     exit(1);
 }
 
 void Ship::Switch::ThrowMissingOTR(std::string otrPath) {
+    constexpr size_t numRandomTexts = sizeof(RandomTexts) / sizeof(RandomTexts[0]);
     Ship::Switch::ShowErrorApplet("You've launched the Ship without an OTR/O2R file.\n"
                                         "Please relaunch making sure %s exists.\n\n"
                                         "%s.",
-                                        otrPath.c_str(), RandomTexts[rand() % 25]);
+                                        otrPath.c_str(), RandomTexts[rand() % numRandomTexts]);
     exit(2);
 }
 #endif

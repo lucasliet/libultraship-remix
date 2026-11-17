@@ -176,14 +176,34 @@ if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
     # ship only pkg-config files (no CMake configs), so the desktop
     # find_package(SDL2) path doesn't exist here — wire headers and raw
     # library names explicitly through the toolchain's DEVKITPRO root.
-    target_include_directories(libultraship PRIVATE
-        ${DEVKITPRO}/portlibs/switch/include
-        ${DEVKITPRO}/portlibs/switch/include/SDL2
-    )
-    target_link_directories(libultraship PRIVATE ${DEVKITPRO}/portlibs/switch/lib)
-    # libSDL2.a is static: its EGL backend pulls EGL -> glapi -> drm_nouveau
-    # (the same set switch-sdl2's sdl2.pc lists), which must follow SDL2.
-    target_link_libraries(libultraship PRIVATE SDL2 EGL glapi drm_nouveau glad)
+    if (NINTENDO_SWITCH2)
+        target_include_directories(libultraship PRIVATE
+            ${DEVKITPRO}/portlibs/switch2/include
+            ${DEVKITPRO}/portlibs/switch/include
+            ${DEVKITPRO}/portlibs/switch/include/SDL2
+        )
+        target_link_directories(libultraship BEFORE PRIVATE
+            ${DEVKITPRO}/portlibs/switch2/lib
+            ${DEVKITPRO}/libounce/lib
+        )
+        target_link_directories(libultraship PRIVATE ${DEVKITPRO}/portlibs/switch/lib)
+        target_link_libraries(libultraship PRIVATE
+            SDL2
+            ${DEVKITPRO}/portlibs/switch2/lib/libEGL.a
+            ${DEVKITPRO}/portlibs/switch2/lib/libglapi.a
+            ${DEVKITPRO}/portlibs/switch2/lib/libdrm_nouveau.a
+            glad
+        )
+    else()
+        target_include_directories(libultraship PRIVATE
+            ${DEVKITPRO}/portlibs/switch/include
+            ${DEVKITPRO}/portlibs/switch/include/SDL2
+        )
+        target_link_directories(libultraship PRIVATE ${DEVKITPRO}/portlibs/switch/lib)
+        # libSDL2.a is static: its EGL backend pulls EGL -> glapi -> drm_nouveau
+        # (the same set switch-sdl2's sdl2.pc lists), which must follow SDL2.
+        target_link_libraries(libultraship PRIVATE SDL2 EGL glapi drm_nouveau glad)
+    endif()
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "PS5")

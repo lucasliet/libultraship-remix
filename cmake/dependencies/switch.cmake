@@ -1,7 +1,11 @@
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 # ========= ImGui =========
-target_include_directories(ImGui PRIVATE ${DEVKITPRO}/portlibs/switch/include/ ${DEVKITPRO}/portlibs/switch/include/SDL2)
+if (NINTENDO_SWITCH2)
+    target_include_directories(ImGui PRIVATE ${DEVKITPRO}/portlibs/switch2/include/ ${DEVKITPRO}/portlibs/switch/include/ ${DEVKITPRO}/portlibs/switch/include/SDL2)
+else()
+    target_include_directories(ImGui PRIVATE ${DEVKITPRO}/portlibs/switch/include/ ${DEVKITPRO}/portlibs/switch/include/SDL2)
+endif()
 
 #=================== nlohmann-json ===================
 find_package(nlohmann_json QUIET)

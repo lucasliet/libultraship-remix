@@ -39,7 +39,7 @@
 
 namespace Fast {
 int GfxRenderingAPIOGL::GetMaxTextureSize() {
-    GLint max_texture_size;
+    GLint max_texture_size = 4096;
     glGetIntegerv(GL_MAX_TEXTURE_SIZE, &max_texture_size);
     return max_texture_size;
 }
@@ -776,6 +776,13 @@ void GfxRenderingAPIOGL::OnResize() {
 
 void GfxRenderingAPIOGL::StartFrame() {
     mFrameCount++;
+#ifdef __SWITCH2__
+    // OunceVK (Zink): bind the VAO and VBO again and reload the program every frame instead of trusting
+    // the state the previous frame left.
+    glBindVertexArray(mOpenglVao);
+    glBindBuffer(GL_ARRAY_BUFFER, mOpenglVbo);
+    mLastLoadedShader = nullptr;
+#endif
 }
 
 // --------------------------------------------------------------------------
